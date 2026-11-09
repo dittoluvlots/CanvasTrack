@@ -1,11 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ArtFlow helps digital artists organize projects and commissions.">
+    <meta name="description" content="CanvasTrack helps digital artists organize commissions, creative projects, and deadlines.">
     <title>CanvasTrack | Creative Project Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
@@ -13,17 +15,20 @@
     <div class="app-shell">
         <aside class="sidebar">
             <a href="#" class="brand" aria-label="CanvasTrack home">
-                <span class="brand-icon">A</span>
+                <span class="brand-icon" aria-hidden="true">C</span>
                 <span>CanvasTrack<span class="brand-dot">.</span></span>
             </a>
 
             <p class="nav-label">WORKSPACE</p>
             <nav class="navigation">
-                <a href="#dashboard" class="nav-link active" data-section="dashboard">
-                    <span class="nav-icon">⌂</span> Overview
+                <a href="#dashboard" class="nav-link active" data-section="dashboard" aria-current="page">
+                    <span class="nav-icon" aria-hidden="true">⌂</span> Overview
                 </a>
                 <a href="#projects" class="nav-link" data-section="projects">
-                    <span class="nav-icon">▤</span> My Projects
+                    <span class="nav-icon" aria-hidden="true">▤</span> My Projects
+                </a>
+                <a href="#tos" class="nav-link" data-section="tos">
+                    <span class="nav-icon" aria-hidden="true">☰</span> Intro &amp; T.O.S
                 </a>
             </nav>
 
@@ -42,131 +47,153 @@
         <main class="main-content">
             <header class="topbar">
                 <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-label">Overview</strong></div>
-                <button class="button button-primary" id="open-add-form" type="button">
+                <button class="button button-primary" id="open-add-form" type="button" aria-haspopup="dialog">
                     <span>＋</span> New project
                 </button>
             </header>
 
-            <section id="dashboard" class="page-section">
-                <div class="page-heading">
-                    <div>
-                        <p class="eyebrow">YOUR CREATIVE WORKSPACE</p>
-                        <h1>Make room for creativity.</h1>
-                        <p class="page-description">
-                            Manage your projects, keep track of deadlines, and stay organized.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="stats-grid">
-                    <article class="stat-card">
-                        <div class="stat-top">
-                            <span>Total projects</span>
-                            <span class="stat-icon icon-purple">▤</span>
-                        </div>
-                        <strong id="total-count">0</strong>
-                        <p>All your creative work</p>
-                    </article>
-
-                    <article class="stat-card">
-                        <div class="stat-top">
-                            <span>In progress</span>
-                            <span class="stat-icon icon-blue">◷</span>
-                        </div>
-                        <strong id="progress-count">0</strong>
-                        <p>Currently being worked on</p>
-                    </article>
-
-                    <article class="stat-card">
-                        <div class="stat-top">
-                            <span>For review</span>
-                            <span class="stat-icon icon-orange">◇</span>
-                        </div>
-                        <strong id="review-count">0</strong>
-                        <p>Waiting for feedback</p>
-                    </article>
-
-                    <article class="stat-card">
-                        <div class="stat-top">
-                            <span>Completed</span>
-                            <span class="stat-icon icon-green">✓</span>
-                        </div>
-                        <strong id="completed-count">0</strong>
-                        <p>Finished projects</p>
-                    </article>
-                </div>
-
-                <section class="panel">
-                    <div class="panel-heading">
+            <div class="content-surface">
+                <!-- DASHBOARD SECTION -->
+                <section id="dashboard" class="page-section">
+                    <div class="page-heading">
                         <div>
-                            <h2>Recent projects</h2>
-                            <p>Your latest creative work at a glance.</p>
+                            <p class="eyebrow">YOUR CREATIVE WORKSPACE</p>
+                            <h1>Your creative work, in one place.</h1>
+                            <p class="page-description">
+                                Track commissions, monitor progress, and keep deadlines in view.
+                            </p>
                         </div>
-                        <button class="text-button" id="view-all" type="button">View all →</button>
                     </div>
-                    <div id="recent-projects" class="recent-projects"></div>
+
+                    <div class="stats-grid">
+                        <article class="stat-card">
+                            <div class="stat-top">
+                                <span>Total projects</span>
+                                <span class="stat-icon icon-purple">▤</span>
+                            </div>
+                            <strong id="total-count">0</strong>
+                            <p>All your creative work</p>
+                        </article>
+
+                        <article class="stat-card">
+                            <div class="stat-top">
+                                <span>In progress</span>
+                                <span class="stat-icon icon-blue">◷</span>
+                            </div>
+                            <strong id="progress-count">0</strong>
+                            <p>Currently being worked on</p>
+                        </article>
+
+                        <article class="stat-card">
+                            <div class="stat-top">
+                                <span>For review</span>
+                                <span class="stat-icon icon-orange">◇</span>
+                            </div>
+                            <strong id="review-count">0</strong>
+                            <p>Waiting for feedback</p>
+                        </article>
+
+                        <article class="stat-card">
+                            <div class="stat-top">
+                                <span>Completed</span>
+                                <span class="stat-icon icon-green">✓</span>
+                            </div>
+                            <strong id="completed-count">0</strong>
+                            <p>Finished projects</p>
+                        </article>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <section class="panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <h2>Recent projects</h2>
+                                    <p>Your latest creative work at a glance.</p>
+                                </div>
+                                <button class="text-button" id="view-all" type="button">View all →</button>
+                            </div>
+                            <div id="recent-projects" class="recent-projects" aria-live="polite"></div>
+                        </section>
+
+                        <section class="panel deadline-panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <h2>Upcoming deadlines</h2>
+                                    <p>Keep an eye on what's due next.</p>
+                                </div>
+                            </div>
+                            <div id="upcoming-deadlines" class="deadline-list" aria-live="polite"></div>
+                        </section>
+                    </div>
                 </section>
 
-                <section class="panel deadline-panel">
-                    <div class="panel-heading">
+                <!-- MY PROJECTS SECTION -->
+                <section id="projects" class="page-section hidden">
+                    <div class="page-heading project-heading">
                         <div>
-                            <h2>Upcoming deadlines</h2>
-                            <p>Keep an eye on what's due next.</p>
+                            <p class="eyebrow">YOUR WORK, ORGANIZED</p>
+                            <h1>My projects</h1>
+                            <p class="page-description">Keep each commission's details, status, and deadline easy to find.</p>
                         </div>
                     </div>
-                    <div id="upcoming-deadlines" class="deadline-list"></div>
-                </section>
-            </section>
 
-            <section id="projects" class="page-section hidden">
-                <div class="page-heading project-heading">
-                    <div>
-                        <p class="eyebrow">YOUR WORK, ORGANIZED</p>
-                        <h1>My projects</h1>
-                        <p class="page-description">Manage commissions, personal work, and creative tasks.</p>
-                    </div>
-                </div>
+                    <section class="panel project-panel">
+                        <div class="toolbar">
+                            <div class="search-box">
+                                <span>⌕</span>
+                                <input id="search-input" type="search"
+                                    placeholder="Search by project, client, or notes..."
+                                    aria-label="Search projects or clients">
+                            </div>
 
-                <section class="panel project-panel">
-                    <div class="toolbar">
-                        <div class="search-box">
-                            <span>⌕</span>
-                            <input id="search-input" type="search"
-                                placeholder="Search projects or clients..."
-                                aria-label="Search projects or clients">
+                            <select id="status-filter" aria-label="Filter by status">
+                                <option value="all">All statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Planning">Planning</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="For Review">For Review</option>
+                                <option value="Revision">Revision</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+
+                            <select id="category-filter" aria-label="Filter by category">
+                                <option value="all">All categories</option>
+                                <option value="Illustration">Illustration</option>
+                                <option value="3D Art">3D Art</option>
+                                <option value="Graphic Design">Graphic Design</option>
+                                <option value="Other">Other</option>
+                            </select>
+
+                            <select id="sort-filter" aria-label="Sort projects">
+                                <option value="newest">Newest first</option>
+                                <option value="deadline">Earliest deadline</option>
+                                <option value="price-high">Highest amount</option>
+                                <option value="price-low">Lowest amount</option>
+                                <option value="title">Project name</option>
+                            </select>
                         </div>
 
-                        <select id="status-filter" aria-label="Filter by status">
-                            <option value="all">All statuses</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Planning">Planning</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="For Review">For Review</option>
-                            <option value="Revision">Revision</option>
-                            <option value="Completed">Completed</option>
-                        </select>
+                        <div id="project-list" class="project-list" aria-live="polite"></div>
+                        <p id="results-count" class="results-count" aria-live="polite"></p>
+                    </section>
+                </section>
 
-                        <select id="category-filter" aria-label="Filter by category">
-                            <option value="all">All categories</option>
-                            <option value="Illustration">Illustration</option>
-                            <option value="3D Art">3D Art</option>
-                            <option value="Graphic Design">Graphic Design</option>
-                            <option value="Other">Other</option>
-                        </select>
-
-                        <select id="sort-filter" aria-label="Sort projects">
-                            <option value="newest">Newest first</option>
-                            <option value="deadline">Earliest deadline</option>
-                            <option value="price-high">Highest price</option>
-                            <option value="price-low">Lowest price</option>
-                            <option value="title">Project name</option>
-                        </select>
+                <!-- INTRO & T.O.S SECTION -->
+                <section id="tos" class="page-section hidden">
+                    <div class="page-heading tos-page-heading">
+                        <div>
+                            <p class="eyebrow">CLIENT GUIDELINES &amp; INFO</p>
+                            <h1>Intro &amp; Terms of Service</h1>
+                            <p class="page-description">Quickly copy your introduction, pricing tiers, and terms to send to clients.</p>
+                        </div>
+                        <button class="button button-primary" id="open-tos-form" type="button">
+                            <span>＋</span> Add new section
+                        </button>
                     </div>
 
-                    <div id="project-list" class="project-list"></div>
-                    <p id="results-count" class="results-count"></p>
+                    <div id="tos-grid" class="tos-grid" aria-live="polite"></div>
                 </section>
-            </section>
+            </div>
 
             <footer class="app-footer">
                 CanvasTrack <span>·</span> Your work, your way.
@@ -175,13 +202,13 @@
     </div>
 
     <!-- Add and edit project dialog -->
-    <dialog id="project-dialog" class="project-dialog">
+    <dialog id="project-dialog" class="project-dialog" aria-labelledby="dialog-title">
         <form id="project-form" novalidate>
             <div class="dialog-heading">
                 <div>
                     <p class="eyebrow">PROJECT DETAILS</p>
                     <h2 id="dialog-title">Create a project</h2>
-                    <p class="dialog-description">Add the details you need to stay organized.</p>
+                    <p class="dialog-description">Add the commission details, schedule, and current stage.</p>
                 </div>
                 <button class="close-button" id="close-dialog" type="button"
                     aria-label="Close form">×</button>
@@ -217,15 +244,24 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="project-price">Agreed price (₱)</label>
-                    <input id="project-price" name="price" type="number"
-                        min="0" max="999999999" step="0.01" placeholder="0.00">
+                    <label for="project-price">Agreed price</label>
+                    <div class="price-input-group">
+                        <input id="project-price" name="price" type="number"
+                            min="0" max="999999999" step="0.01" placeholder="0.00"
+                            inputmode="decimal" aria-describedby="price-help price-error">
+                        <select id="project-currency" name="currency" aria-label="Price currency">
+                            <option value="PHP">PHP (₱)</option>
+                            <option value="USD">USD ($)</option>
+                        </select>
+                    </div>
+                    <small class="field-help" id="price-help">Choose the currency agreed with the client.</small>
                     <small class="field-error" id="price-error"></small>
                 </div>
 
                 <div class="form-group">
                     <label for="project-deadline">Deadline</label>
-                    <input id="project-deadline" name="deadline" type="date">
+                    <input id="project-deadline" name="deadline" type="date"
+                        aria-describedby="deadline-error">
                     <small class="field-error" id="deadline-error"></small>
                 </div>
             </div>
@@ -258,14 +294,63 @@
         </form>
     </dialog>
 
-    <dialog id="delete-dialog" class="confirm-dialog">
+    <!-- Add T.O.S Dialog -->
+    <dialog id="tos-dialog" class="project-dialog" aria-labelledby="tos-dialog-title">
+        <form id="tos-form" novalidate>
+            <div class="dialog-heading">
+                <div>
+                    <p class="eyebrow">CLIENT GUIDELINES</p>
+                    <h2 id="tos-dialog-title">Add copy-paste section</h2>
+                    <p class="dialog-description">Create a new template for your clients.</p>
+                </div>
+                <button class="close-button" id="close-tos-dialog" type="button" aria-label="Close form">×</button>
+            </div>
+
+            <div class="form-group">
+                <label for="tos-title">Section title <span class="required">*</span></label>
+                <input id="tos-title" name="title" type="text" maxlength="80" placeholder="e.g. Rush Fee Policy" required>
+                <small class="field-error" id="tos-title-error"></small>
+            </div>
+
+            <div class="form-group">
+                <label for="tos-subtitle">Short subtitle / description</label>
+                <input id="tos-subtitle" name="subtitle" type="text" maxlength="120" placeholder="e.g. Rules for expedited commissions">
+            </div>
+
+            <div class="form-group">
+                <label for="tos-body">Content / message <span class="required">*</span></label>
+                <textarea id="tos-body" name="body" rows="6" maxlength="2000" placeholder="Type or paste your guidelines here..." required></textarea>
+                <small class="field-error" id="tos-body-error"></small>
+            </div>
+
+            <div class="dialog-actions">
+                <button class="button button-secondary" id="cancel-tos-dialog" type="button">Cancel</button>
+                <button class="button button-primary" type="submit" id="save-tos">Save section</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-title">
         <div class="confirm-content">
             <div class="delete-symbol">!</div>
-            <h2>Delete this project?</h2>
+            <h2 id="delete-title">Delete this project?</h2>
             <p>This action cannot be undone. The project will be removed from your workspace.</p>
             <div class="dialog-actions">
                 <button class="button button-secondary" id="cancel-delete" type="button">Keep project</button>
                 <button class="button button-danger" id="confirm-delete" type="button">Delete project</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Delete T.O.S Dialog -->
+    <dialog id="delete-tos-dialog" class="confirm-dialog" aria-labelledby="delete-tos-title">
+        <div class="confirm-content">
+            <div class="delete-symbol">!</div>
+            <h2 id="delete-tos-title">Delete this section?</h2>
+            <p>This action cannot be undone. The guideline will be removed.</p>
+            <div class="dialog-actions">
+                <button class="button button-secondary" id="cancel-delete-tos" type="button">Keep section</button>
+                <button class="button button-danger" id="confirm-delete-tos" type="button">Delete section</button>
             </div>
         </div>
     </dialog>
