@@ -23,6 +23,8 @@ const CATEGORIES = [
     "Other"
 ];
 
+const SUPPORTED_CURRENCIES = ["PHP", "USD", "IDR", "EUR", "GBP", "JPY"];
+
 const SAMPLE_PROJECTS = [
     {
         id: "sample-1",
@@ -122,6 +124,8 @@ const elements = {
     statusFilter: $("#status-filter"),
     categoryFilter: $("#category-filter"),
     sortFilter: $("#sort-filter"),
+    currencyFilter: $("#currency-filter"),
+    currencyCustomFilter: $("#currency-custom-filter"),
 
     dialog: $("#project-dialog"),
     form: $("#project-form"),
@@ -132,6 +136,7 @@ const elements = {
     category: $("#project-category"),
     price: $("#project-price"),
     currency: $("#project-currency"),
+    customCurrency: $("#custom-currency"),
     deadline: $("#project-deadline"),
     status: $("#project-status"),
     description: $("#project-description"),
@@ -139,9 +144,12 @@ const elements = {
 
     tosDialog: $("#tos-dialog"),
     tosForm: $("#tos-form"),
+    tosDialogTitle: $("#tos-dialog-title"),
+    tosId: $("#tos-id"),
     tosTitle: $("#tos-title"),
     tosSubtitle: $("#tos-subtitle"),
     tosBody: $("#tos-body"),
+    saveTos: $("#save-tos"),
 
     deleteDialog: $("#delete-dialog"),
     confirmDelete: $("#confirm-delete"),
@@ -180,7 +188,7 @@ function loadProjects() {
         }
         projects = parsedData.map(project => ({
             ...project,
-            currency: project.currency === "USD" ? "USD" : "PHP"
+            currency: (project.currency && typeof project.currency === "string") ? project.currency.trim() : "PHP"
         }));
     } catch (error) {
         console.error("Unable to load projects:", error);
@@ -199,7 +207,7 @@ function isValidStoredProject(project) {
         CATEGORIES.includes(project.category) &&
         typeof project.price === "number" &&
         Number.isFinite(project.price) &&
-        (project.currency === undefined || ["PHP", "USD"].includes(project.currency)) &&
+        (project.currency === undefined || (typeof project.currency === "string" && project.currency.trim().length > 0 && project.currency.length <= 10)) &&
         project.price >= 0 &&
         typeof project.deadline === "string" &&
         STATUSES.includes(project.status) &&
@@ -267,15 +275,34 @@ function escapeHTML(value) {
 }
 
 function formatPrice(price, currency = "PHP") {
-    const safeCurrency = currency === "USD" ? "USD" : "PHP";
-    const locale = safeCurrency === "USD" ? "en-US" : "en-PH";
+    const safeCurrency = (currency && typeof currency === "string") ? currency.trim() : "PHP";
 
-    return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: safeCurrency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(price);
+    const localeMap = {
+        PHP: "en-PH",
+        USD: "en-US",
+        IDR: "id-ID",
+        EUR: "de-DE",
+        GBP: "en-GB",
+        JPY: "ja-JP"
+    };
+
+    const locale = localeMap[safeCurrency.toUpperCase()] || "en-US";
+    const noDecimals = ["IDR", "JPY", "KRW"].includes(safeCurrency.toUpperCase());
+
+    try {
+        return new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency: safeCurrency,
+            minimumFractionDigits: noDecimals ? 0 : 2,
+            maximumFractionDigits: noDecimals ? 0 : 2
+        }).format(price);
+    } catch {
+        const formattedNumber = Number(price).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        return `${safeCurrency} ${formattedNumber}`;
+    }
 }
 
 function formatDate(dateString) {
@@ -322,6 +349,10 @@ function showToast(message) {
 
 function findProject(id) {
     return projects.find(project => project.id === id);
+}
+
+function findTosSection(id) {
+    return tosSections.find(sec => sec.id === id);
 }
 
 function getDeadlineLabel(project) {
@@ -373,24 +404,35 @@ function renderRecentProjects() {
     }
 
     elements.recent.innerHTML = recentProjects
-        .map(project => `
-            <article class="recent-row">
-                <div class="recent-row-main">
-                    <h3 class="project-title">${escapeHTML(project.title)}</h3>
-                    <p class="project-subtitle">
-                        ${escapeHTML(project.client || "Personal project")} · ${escapeHTML(project.category)}
-                    </p>
-                </div>
-                <div class="recent-row-aside">
-                    ${statusBadge(project.status)}
-                    <div class="recent-row-meta">
-                        <strong>${escapeHTML(formatPrice(project.price, project.currency))}</strong>
-                        <span>${escapeHTML(getDeadlineLabel(project))}</span>
+        .map(project => {
+            const deadlineLabel = getDeadlineLabel(project);
+            let deadlineHTML = escapeHTML(deadlineLabel);
+
+            if (deadlineLabel === "Overdue" && project.deadline) {
+                deadlineHTML = `<span class="deadline-overdue">Overdue · ${escapeHTML(formatDate(project.deadline))}</span>`;
+            } else if (deadlineLabel === "Due today" && project.deadline) {
+                deadlineHTML = `<span class="deadline-due-today">Due today · ${escapeHTML(formatDate(project.deadline))}</span>`;
+            }
+
+            return `
+                <article class="recent-row">
+                    <div class="recent-row-main">
+                        <h3 class="project-title">${escapeHTML(project.title)}</h3>
+                        <p class="project-subtitle">
+                            ${escapeHTML(project.client || "Personal project")} · ${escapeHTML(project.category)}
+                        </p>
                     </div>
-                    <button class="small-button" data-action="edit" data-id="${escapeHTML(project.id)}" type="button" aria-label="Edit ${escapeHTML(project.title)}">→</button>
-                </div>
-            </article>
-        `)
+                    <div class="recent-row-aside">
+                        ${statusBadge(project.status)}
+                        <div class="recent-row-meta">
+                            <strong>${escapeHTML(formatPrice(project.price, project.currency))}</strong>
+                            <span>${deadlineHTML}</span>
+                        </div>
+                        <button class="small-button" data-action="edit" data-id="${escapeHTML(project.id)}" type="button" aria-label="Edit ${escapeHTML(project.title)}">→</button>
+                    </div>
+                </article>
+            `;
+        })
         .join("");
 }
 
@@ -458,6 +500,7 @@ function renderTosSections() {
                     </div>
                     <div class="tos-actions">
                         <button class="small-button copy-btn" data-copy-target="tos-body-${escapeHTML(sec.id)}" type="button">Copy text</button>
+                        <button class="small-button" data-action="edit-tos" data-id="${escapeHTML(sec.id)}" type="button">Edit</button>
                         <button class="small-button danger-text" data-action="delete-tos" data-id="${escapeHTML(sec.id)}" type="button">Delete</button>
                     </div>
                 </div>
@@ -475,7 +518,15 @@ function createProjectCard(project, compact = false) {
     const description = project.description
         ? `<p class="project-description">${escapeHTML(project.description)}</p>`
         : "";
+
     const deadlineLabel = getDeadlineLabel(project);
+    let deadlineHTML = `<span>◷ ${escapeHTML(deadlineLabel)}</span>`;
+
+    if (deadlineLabel === "Overdue" && project.deadline) {
+        deadlineHTML = `<span class="deadline-overdue">◷ Overdue · ${escapeHTML(formatDate(project.deadline))}</span>`;
+    } else if (deadlineLabel === "Due today" && project.deadline) {
+        deadlineHTML = `<span class="deadline-due-today">◷ Due today · ${escapeHTML(formatDate(project.deadline))}</span>`;
+    }
 
     return `
         <article class="project-card" data-project-id="${escapeHTML(project.id)}">
@@ -492,7 +543,7 @@ function createProjectCard(project, compact = false) {
             ${compact ? "" : description}
 
             <div class="project-meta">
-                <span>◷ ${escapeHTML(deadlineLabel)}</span>
+                ${deadlineHTML}
                 <span>${escapeHTML(formatPrice(project.price, project.currency))}</span>
             </div>
 
@@ -517,8 +568,26 @@ function createProjectCard(project, compact = false) {
 function getFilteredProjects() {
     const searchTerm = elements.search.value.trim().toLowerCase();
     const selectedStatus = elements.statusFilter.value;
-    const selectedCategory = elements.categoryFilter.value;
+    const checkedCategories = Array.from(
+        elements.categoryFilter.querySelectorAll('input[type="checkbox"]:checked')
+    ).map(cb => cb.value);
     const sortMethod = elements.sortFilter.value;
+
+    const currencyFilterVal = elements.currencyFilter.value;
+    let targetCurr = "";
+    if (currencyFilterVal !== "all") {
+        if (currencyFilterVal === "CUSTOM") {
+            const customVal = elements.currencyCustomFilter.value.trim();
+            const lettersOnlyRegex = /^[A-Za-z\s₱$€£¥₩฿Rp₹₽₺₴₦]+$/;
+            if (customVal && lettersOnlyRegex.test(customVal)) {
+                targetCurr = customVal.toUpperCase();
+            } else {
+                targetCurr = "CUSTOM_INVALID";
+            }
+        } else {
+            targetCurr = currencyFilterVal.toUpperCase();
+        }
+    }
 
     const filtered = projects.filter(project => {
         const searchableText = [
@@ -530,9 +599,17 @@ function getFilteredProjects() {
 
         const matchesSearch = searchableText.includes(searchTerm);
         const matchesStatus = selectedStatus === "all" || project.status === selectedStatus;
-        const matchesCategory = selectedCategory === "all" || project.category === selectedCategory;
+        const matchesCategory = checkedCategories.length === 0 || checkedCategories.includes(project.category);
+        
+        let matchesCurrency = true;
+        if (targetCurr === "CUSTOM_INVALID") {
+            matchesCurrency = false;
+        } else if (targetCurr) {
+            const projCurr = (project.currency || "PHP").toUpperCase();
+            matchesCurrency = projCurr === targetCurr;
+        }
 
-        return matchesSearch && matchesStatus && matchesCategory;
+        return matchesSearch && matchesStatus && matchesCategory && matchesCurrency;
     });
 
     filtered.sort((a, b) => {
@@ -638,6 +715,31 @@ $("#open-tos-form").addEventListener("click", () => {
     openTosForm();
 });
 
+// Currency dropdown change handler (Modal form)
+elements.currency.addEventListener("change", () => {
+    const isCustom = elements.currency.value === "CUSTOM";
+    elements.customCurrency.classList.toggle("hidden", !isCustom);
+    if (isCustom) {
+        elements.customCurrency.focus();
+    } else {
+        elements.customCurrency.value = "";
+    }
+});
+
+// Independent Currency Filter change handler
+elements.currencyFilter.addEventListener("change", () => {
+    const isCustom = elements.currencyFilter.value === "CUSTOM";
+    elements.currencyCustomFilter.classList.toggle("hidden", !isCustom);
+    if (isCustom) {
+        elements.currencyCustomFilter.focus();
+    } else {
+        elements.currencyCustomFilter.value = "";
+    }
+    renderProjects();
+});
+
+elements.currencyCustomFilter.addEventListener("input", renderProjects);
+
 // Copy T.O.S text handler
 document.addEventListener("click", event => {
     const copyButton = event.target.closest(".copy-btn");
@@ -711,8 +813,19 @@ function validateForm() {
         elements.formMessage.textContent = "Please select a valid project category.";
         isValid = false;
     }
-    if (!["PHP", "USD"].includes(currency)) {
-        elements.formMessage.textContent = "Please choose PHP or USD for the project price.";
+    if (currency === "CUSTOM") {
+        const customVal = elements.customCurrency.value.trim();
+        const lettersOnlyRegex = /^[A-Za-z\s₱$€£¥₩฿Rp₹₽₺₴₦]+$/;
+
+        if (!customVal) {
+            setFieldError(elements.customCurrency, "price-error", "Please enter a custom currency code or symbol.");
+            isValid = false;
+        } else if (!lettersOnlyRegex.test(customVal)) {
+            setFieldError(elements.customCurrency, "price-error", "Currency symbols cannot contain numbers.");
+            isValid = false;
+        }
+    } else if (!SUPPORTED_CURRENCIES.includes(currency)) {
+        elements.formMessage.textContent = "Please choose a valid currency for the project price.";
         isValid = false;
     }
     if (priceText !== "") {
@@ -753,13 +866,26 @@ function openProjectForm(project = null) {
         elements.client.value = project.client;
         elements.category.value = project.category;
         elements.price.value = project.price;
-        elements.currency.value = project.currency || "PHP";
+
+        const savedCurrency = project.currency || "PHP";
+        if (SUPPORTED_CURRENCIES.includes(savedCurrency)) {
+            elements.currency.value = savedCurrency;
+            elements.customCurrency.classList.add("hidden");
+            elements.customCurrency.value = "";
+        } else {
+            elements.currency.value = "CUSTOM";
+            elements.customCurrency.classList.remove("hidden");
+            elements.customCurrency.value = savedCurrency;
+        }
+
         elements.deadline.value = project.deadline;
         elements.status.value = project.status;
         elements.description.value = project.description;
     } else {
         elements.category.value = "Illustration";
         elements.currency.value = "PHP";
+        elements.customCurrency.classList.add("hidden");
+        elements.customCurrency.value = "";
         elements.status.value = "Pending";
     }
 
@@ -773,8 +899,27 @@ function closeProjectForm() {
     clearValidation();
 }
 
-function openTosForm() {
+function openTosForm(sec = null) {
     elements.tosForm.reset();
+    elements.tosTitle.classList.remove("invalid");
+    elements.tosBody.classList.remove("invalid");
+    $("#tos-title-error").textContent = "";
+    $("#tos-body-error").textContent = "";
+
+    elements.tosId.value = sec ? sec.id : "";
+    elements.tosDialogTitle.textContent = sec ? "Edit section" : "Add copy-paste section";
+    elements.saveTos.textContent = sec ? "Save changes" : "Save section";
+
+    if (sec) {
+        elements.tosTitle.value = sec.title;
+        elements.tosSubtitle.value = sec.subtitle || "";
+        elements.tosBody.value = sec.body;
+    } else {
+        elements.tosTitle.value = "";
+        elements.tosSubtitle.value = "";
+        elements.tosBody.value = "";
+    }
+
     elements.tosDialog.showModal();
     elements.tosTitle.focus();
 }
@@ -801,17 +946,21 @@ elements.form.addEventListener("submit", event => {
     if (!validateForm()) return;
 
     const id = elements.projectId.value;
+    const existingProject = id ? findProject(id) : null;
+
     const projectData = {
         id: id || (typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
         title: elements.title.value.trim(),
         client: elements.client.value.trim(),
         category: elements.category.value,
         price: elements.price.value === "" ? 0 : Number(elements.price.value),
-        currency: elements.currency.value === "USD" ? "USD" : "PHP",
+        currency: elements.currency.value === "CUSTOM"
+            ? elements.customCurrency.value.trim()
+            : (SUPPORTED_CURRENCIES.includes(elements.currency.value) ? elements.currency.value : "PHP"),
         deadline: elements.deadline.value,
         status: elements.status.value,
         description: elements.description.value.trim(),
-        createdAt: new Date().toISOString()
+        createdAt: existingProject ? existingProject.createdAt : new Date().toISOString()
     };
 
     if (id) {
@@ -820,7 +969,6 @@ elements.form.addEventListener("submit", event => {
             elements.formMessage.textContent = "This project no longer exists.";
             return;
         }
-        projectData.createdAt = projects[index].createdAt;
         projects[index] = projectData;
     } else {
         projects.push(projectData);
@@ -834,9 +982,15 @@ elements.form.addEventListener("submit", event => {
 
 elements.tosForm.addEventListener("submit", event => {
     event.preventDefault();
+    const id = elements.tosId.value;
     const title = elements.tosTitle.value.trim();
     const subtitle = elements.tosSubtitle.value.trim();
     const body = elements.tosBody.value.trim();
+
+    elements.tosTitle.classList.remove("invalid");
+    elements.tosBody.classList.remove("invalid");
+    $("#tos-title-error").textContent = "";
+    $("#tos-body-error").textContent = "";
 
     if (!title) {
         elements.tosTitle.classList.add("invalid");
@@ -851,18 +1005,26 @@ elements.tosForm.addEventListener("submit", event => {
         return;
     }
 
-    const newTos = {
-        id: typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+    const tosData = {
+        id: id || (typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
         title,
         subtitle,
         body
     };
 
-    tosSections.push(newTos);
+    if (id) {
+        const index = tosSections.findIndex(sec => sec.id === id);
+        if (index !== -1) {
+            tosSections[index] = tosData;
+        }
+    } else {
+        tosSections.push(tosData);
+    }
+
     saveTosSections();
     closeTosForm();
     renderTosSections();
-    showToast("New T.O.S section added successfully.");
+    showToast(id ? "T.O.S section updated successfully." : "New T.O.S section added successfully.");
 });
 
 // ========================================
@@ -883,9 +1045,17 @@ function handleProjectAction(event) {
     if (action === "clear-filters") {
         elements.search.value = "";
         elements.statusFilter.value = "all";
-        elements.categoryFilter.value = "all";
+        elements.categoryFilter.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
         elements.sortFilter.value = "newest";
+        elements.currencyFilter.value = "all";
+        elements.currencyCustomFilter.classList.add("hidden");
+        elements.currencyCustomFilter.value = "";
         renderProjects();
+        return;
+    }
+    if (action === "edit-tos") {
+        const sec = findTosSection(id);
+        if (sec) openTosForm(sec);
         return;
     }
     if (action === "delete-tos") {
