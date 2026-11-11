@@ -23,6 +23,12 @@ const CATEGORIES = [
     "Other"
 ];
 
+const PRIORITIES = {
+    low: { rank: 1, emoji: "🟢", label: "Low Priority", className: "priority-low" },
+    medium: { rank: 2, emoji: "🟠", label: "Medium Priority", className: "priority-medium" },
+    high: { rank: 3, emoji: "🔴", label: "High Priority", className: "priority-high" }
+};
+
 const SUPPORTED_CURRENCIES = ["PHP", "USD", "IDR", "EUR", "GBP", "JPY"];
 
 const SAMPLE_PROJECTS = [
@@ -35,6 +41,7 @@ const SAMPLE_PROJECTS = [
         currency: "PHP",
         deadline: "2026-11-05",
         status: "In Progress",
+        priority: "high",
         description: "Finish the character coloring and final details.",
         createdAt: "2026-10-20T09:00:00.000Z"
     },
@@ -47,6 +54,7 @@ const SAMPLE_PROJECTS = [
         currency: "PHP",
         deadline: "2026-11-08",
         status: "For Review",
+        priority: "medium",
         description: "Prepare the model for client review.",
         createdAt: "2026-10-21T09:00:00.000Z"
     },
@@ -59,6 +67,7 @@ const SAMPLE_PROJECTS = [
         currency: "PHP",
         deadline: "2026-11-12",
         status: "Planning",
+        priority: "low",
         description: "Prepare the first concepts for the client.",
         createdAt: "2026-10-22T09:00:00.000Z"
     },
@@ -71,6 +80,7 @@ const SAMPLE_PROJECTS = [
         currency: "PHP",
         deadline: "",
         status: "Completed",
+        priority: "low",
         description: "Final model and revisions completed.",
         createdAt: "2026-10-18T09:00:00.000Z"
     }
@@ -102,10 +112,12 @@ const DEFAULT_TOS_SECTIONS = [
 // ========================================
 
 const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => document.querySelectorAll(selector);
 
 const elements = {
     dashboard: $("#dashboard"),
     projects: $("#projects"),
+    calendar: $("#calendar"),
     tos: $("#tos"),
     breadcrumb: $("#breadcrumb-label"),
 
@@ -119,6 +131,12 @@ const elements = {
     projectList: $("#project-list"),
     resultsCount: $("#results-count"),
     tosGrid: $("#tos-grid"),
+
+    calMonthTitle: $("#cal-month-title"),
+    calDaysGrid: $("#cal-days-grid"),
+    calPrev: $("#cal-prev"),
+    calNext: $("#cal-next"),
+    calToday: $("#cal-today"),
 
     search: $("#search-input"),
     statusFilter: $("#status-filter"),
@@ -139,6 +157,7 @@ const elements = {
     customCurrency: $("#custom-currency"),
     deadline: $("#project-deadline"),
     status: $("#project-status"),
+    priority: $("#project-priority"),
     description: $("#project-description"),
     formMessage: $("#form-message"),
 
@@ -170,6 +189,8 @@ let pendingDeleteId = null;
 let pendingDeleteTosId = null;
 let toastTimer = null;
 
+let currentCalendarDate = new Date();
+
 // ========================================
 // 4. DATA STORAGE
 // ========================================
@@ -188,7 +209,8 @@ function loadProjects() {
         }
         projects = parsedData.map(project => ({
             ...project,
-            currency: (project.currency && typeof project.currency === "string") ? project.currency.trim() : "PHP"
+            currency: (project.currency && typeof project.currency === "string") ? project.currency.trim() : "PHP",
+            priority: (project.priority && PRIORITIES[project.priority]) ? project.priority : "low"
         }));
     } catch (error) {
         console.error("Unable to load projects:", error);
@@ -338,6 +360,27 @@ function statusBadge(status) {
     `;
 }
 
+function getPriorityInfo(priorityKey) {
+    return PRIORITIES[priorityKey] || PRIORITIES.low;
+}
+
+function priorityBadge(priorityKey) {
+    const info = getPriorityInfo(priorityKey);
+    return `<span class="priority-pill ${info.className}">${info.emoji} ${escapeHTML(info.label)}</span>`;
+}
+
+function compareByPriorityLane(a, b) {
+    const rankA = getPriorityInfo(a.priority).rank;
+    const rankB = getPriorityInfo(b.priority).rank;
+    if (rankA !== rankB) {
+        return rankB - rankA;
+    }
+    if (!a.deadline && !b.deadline) return a.createdAt.localeCompare(b.createdAt);
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return a.deadline.localeCompare(b.deadline);
+}
+
 function showToast(message) {
     clearTimeout(toastTimer);
     elements.toast.textContent = message;
@@ -373,7 +416,7 @@ function getDeadlineLabel(project) {
 }
 
 // ========================================
-// 6. DASHBOARD STATISTICS & T.O.S RENDER
+// 6. DASHBOARD & CALENDAR RENDER
 // ========================================
 
 function updateDashboard() {
@@ -383,13 +426,13 @@ function updateDashboard() {
     elements.completed.textContent = projects.filter(p => p.status === "Completed").length;
 
     renderRecentProjects();
-    renderUpcomingDeadlines();
+    renderPriorityLane();
 }
 
 function renderRecentProjects() {
     const recentProjects = [...projects]
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 3);
+        .slice(0, 4);
 
     if (recentProjects.length === 0) {
         elements.recent.innerHTML = `
@@ -417,7 +460,10 @@ function renderRecentProjects() {
             return `
                 <article class="recent-row">
                     <div class="recent-row-main">
-                        <h3 class="project-title">${escapeHTML(project.title)}</h3>
+                        <div class="recent-row-top">
+                            <h3 class="project-title">${escapeHTML(project.title)}</h3>
+                            ${priorityBadge(project.priority)}
+                        </div>
                         <p class="project-subtitle">
                             ${escapeHTML(project.client || "Personal project")} · ${escapeHTML(project.category)}
                         </p>
@@ -436,48 +482,128 @@ function renderRecentProjects() {
         .join("");
 }
 
-function renderUpcomingDeadlines() {
-    const upcoming = projects
-        .filter(project => project.deadline && project.status !== "Completed")
-        .sort((a, b) => a.deadline.localeCompare(b.deadline))
-        .slice(0, 4);
+function renderPriorityLane() {
+    const activeProjects = projects
+        .filter(project => project.status !== "Completed")
+        .sort(compareByPriorityLane);
 
-    if (upcoming.length === 0) {
+    if (activeProjects.length === 0) {
         elements.deadlines.innerHTML = `
             <div class="empty-state">
-                <p>No upcoming deadlines. Add a deadline to a project to see it here.</p>
+                <p>No active projects in your priority lane. Create a project to see it here.</p>
             </div>
         `;
         return;
     }
 
-    elements.deadlines.innerHTML = upcoming
+    elements.deadlines.innerHTML = activeProjects
         .map(project => {
+            const pInfo = getPriorityInfo(project.priority);
             const label = getDeadlineLabel(project);
-            const [year, month, day] = project.deadline.split("-").map(Number);
-            const dateObj = new Date(year, month - 1, day);
-            const monthShort = dateObj.toLocaleDateString("en-US", { month: "short" });
-            const dayNum = String(day).padStart(2, "0");
-
+            let boxContent = `<span class="month">—</span><span class="day">∞</span>`;
             let boxClass = "";
-            if (label === "Overdue") boxClass = "overdue";
-            else if (label === "Due today") boxClass = "due-today";
+
+            if (project.deadline) {
+                const [year, month, day] = project.deadline.split("-").map(Number);
+                const dateObj = new Date(year, month - 1, day);
+                const monthShort = dateObj.toLocaleDateString("en-US", { month: "short" });
+                const dayNum = String(day).padStart(2, "0");
+                boxContent = `<span class="month">${escapeHTML(monthShort)}</span><span class="day">${escapeHTML(dayNum)}</span>`;
+
+                if (label === "Overdue") boxClass = "overdue";
+                else if (label === "Due today") boxClass = "due-today";
+            }
 
             return `
-                <div class="deadline-item">
+                <button class="deadline-item" data-action="edit" data-id="${escapeHTML(project.id)}" type="button">
                     <div class="deadline-box ${boxClass}" aria-hidden="true">
-                        <span class="month">${escapeHTML(monthShort)}</span>
-                        <span class="day">${escapeHTML(dayNum)}</span>
+                        ${boxContent}
                     </div>
-                    <div class="project-info">
-                        <p class="project-title">${escapeHTML(project.title)}</p>
-                        <p class="project-subtitle">${escapeHTML(label)} · ${escapeHTML(project.status)}</p>
+                    <div class="project-info" style="text-align: left;">
+                        <div class="deadline-item-header">
+                            <p class="project-title">${escapeHTML(project.title)}</p>
+                            <span class="priority-dot-inline" title="${escapeHTML(pInfo.label)}">${pInfo.emoji}</span>
+                        </div>
+                        <p class="project-subtitle">${escapeHTML(pInfo.label)} · ${escapeHTML(label)} · ${escapeHTML(project.status)}</p>
                     </div>
-                </div>
+                </button>
             `;
         })
         .join("");
 }
+
+function renderCalendar() {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    elements.calMonthTitle.textContent = `${monthNames[month]} ${year}`;
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    const todayStr = getTodayString();
+    let daysHTML = "";
+
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+        const dayNum = prevMonthDays - i;
+        daysHTML += `
+            <div class="cal-day-cell other-month">
+                <div class="cal-day-header">${dayNum}</div>
+            </div>
+        `;
+    }
+
+    for (let day = 1; day <= totalDays; day++) {
+        const dayStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const isToday = dayStr === todayStr;
+
+        const dayProjects = projects.filter(p => p.deadline === dayStr);
+
+        daysHTML += `
+            <div class="cal-day-cell ${isToday ? "today" : ""}">
+                <div class="cal-day-header">${day}</div>
+                ${dayProjects.map(p => {
+                    const isOverdue = p.deadline < todayStr && p.status !== "Completed";
+                    const barClass = isOverdue ? "event-overdue" : "event-active";
+                    return `
+                        <button class="cal-event-bar ${barClass}" data-action="edit" data-id="${escapeHTML(p.id)}" type="button" title="${escapeHTML(p.title)} (${escapeHTML(p.status)})">
+                            ${escapeHTML(p.title)}
+                        </button>
+                    `;
+                }).join("")}
+            </div>
+        `;
+    }
+
+    const totalCellsSoFar = firstDayIndex + totalDays;
+    const remainingCells = totalCellsSoFar <= 35 ? 35 - totalCellsSoFar : 42 - totalCellsSoFar;
+    for (let day = 1; day <= remainingCells; day++) {
+        daysHTML += `
+            <div class="cal-day-cell other-month">
+                <div class="cal-day-header">${day}</div>
+            </div>
+        `;
+    }
+
+    elements.calDaysGrid.innerHTML = daysHTML;
+}
+
+elements.calPrev.addEventListener("click", () => {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+    renderCalendar();
+});
+
+elements.calNext.addEventListener("click", () => {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+    renderCalendar();
+});
+
+elements.calToday.addEventListener("click", () => {
+    currentCalendarDate = new Date();
+    renderCalendar();
+});
 
 function renderTosSections() {
     if (!tosSections || tosSections.length === 0) {
@@ -540,6 +666,10 @@ function createProjectCard(project, compact = false) {
                 ${statusBadge(project.status)}
             </div>
 
+            <div class="project-badges-row">
+                ${priorityBadge(project.priority)}
+            </div>
+
             ${compact ? "" : description}
 
             <div class="project-meta">
@@ -600,7 +730,7 @@ function getFilteredProjects() {
         const matchesSearch = searchableText.includes(searchTerm);
         const matchesStatus = selectedStatus === "all" || project.status === selectedStatus;
         const matchesCategory = checkedCategories.length === 0 || checkedCategories.includes(project.category);
-        
+
         let matchesCurrency = true;
         if (targetCurr === "CUSTOM_INVALID") {
             matchesCurrency = false;
@@ -614,6 +744,8 @@ function getFilteredProjects() {
 
     filtered.sort((a, b) => {
         switch (sortMethod) {
+            case "priority":
+                return compareByPriorityLane(a, b);
             case "deadline":
                 if (!a.deadline) return b.deadline ? 1 : 0;
                 if (!b.deadline) return -1;
@@ -655,6 +787,7 @@ function renderProjects() {
 function renderAll() {
     updateDashboard();
     renderProjects();
+    renderCalendar();
     renderTosSections();
 }
 
@@ -665,16 +798,20 @@ function renderAll() {
 function showSection(sectionName) {
     const isDashboard = sectionName === "dashboard";
     const isProjects = sectionName === "projects";
+    const isCalendar = sectionName === "calendar";
     const isTos = sectionName === "tos";
 
     elements.dashboard.classList.toggle("hidden", !isDashboard);
     elements.projects.classList.toggle("hidden", !isProjects);
+    elements.calendar.classList.toggle("hidden", !isCalendar);
     elements.tos.classList.toggle("hidden", !isTos);
 
     if (isDashboard) {
         elements.breadcrumb.textContent = "Overview";
     } else if (isProjects) {
         elements.breadcrumb.textContent = "My Projects";
+    } else if (isCalendar) {
+        elements.breadcrumb.textContent = "Calendar";
     } else if (isTos) {
         elements.breadcrumb.textContent = "Intro & T.O.S";
     }
@@ -691,6 +828,8 @@ function showSection(sectionName) {
 
     if (isProjects) {
         renderProjects();
+    } else if (isCalendar) {
+        renderCalendar();
     } else if (isTos) {
         renderTosSections();
     }
@@ -707,15 +846,16 @@ $("#view-all").addEventListener("click", () => {
     showSection("projects");
 });
 
-$("#open-add-form").addEventListener("click", () => {
-    openProjectForm();
+$$(".open-add-form-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        openProjectForm();
+    });
 });
 
 $("#open-tos-form").addEventListener("click", () => {
     openTosForm();
 });
 
-// Currency dropdown change handler (Modal form)
 elements.currency.addEventListener("change", () => {
     const isCustom = elements.currency.value === "CUSTOM";
     elements.customCurrency.classList.toggle("hidden", !isCustom);
@@ -726,7 +866,6 @@ elements.currency.addEventListener("change", () => {
     }
 });
 
-// Independent Currency Filter change handler
 elements.currencyFilter.addEventListener("change", () => {
     const isCustom = elements.currencyFilter.value === "CUSTOM";
     elements.currencyCustomFilter.classList.toggle("hidden", !isCustom);
@@ -740,7 +879,6 @@ elements.currencyFilter.addEventListener("change", () => {
 
 elements.currencyCustomFilter.addEventListener("input", renderProjects);
 
-// Copy T.O.S text handler
 document.addEventListener("click", event => {
     const copyButton = event.target.closest(".copy-btn");
     if (!copyButton) return;
@@ -880,6 +1018,7 @@ function openProjectForm(project = null) {
 
         elements.deadline.value = project.deadline;
         elements.status.value = project.status;
+        elements.priority.value = PRIORITIES[project.priority] ? project.priority : "low";
         elements.description.value = project.description;
     } else {
         elements.category.value = "Illustration";
@@ -887,6 +1026,7 @@ function openProjectForm(project = null) {
         elements.customCurrency.classList.add("hidden");
         elements.customCurrency.value = "";
         elements.status.value = "Pending";
+        elements.priority.value = "low";
     }
 
     elements.dialog.showModal();
@@ -959,6 +1099,7 @@ elements.form.addEventListener("submit", event => {
             : (SUPPORTED_CURRENCIES.includes(elements.currency.value) ? elements.currency.value : "PHP"),
         deadline: elements.deadline.value,
         status: elements.status.value,
+        priority: PRIORITIES[elements.priority.value] ? elements.priority.value : "low",
         description: elements.description.value.trim(),
         createdAt: existingProject ? existingProject.createdAt : new Date().toISOString()
     };
@@ -1078,9 +1219,10 @@ function handleProjectAction(event) {
 
 elements.projectList.addEventListener("click", handleProjectAction);
 elements.recent.addEventListener("click", handleProjectAction);
+elements.deadlines.addEventListener("click", handleProjectAction);
+elements.calDaysGrid.addEventListener("click", handleProjectAction);
 elements.tosGrid.addEventListener("click", handleProjectAction);
 
-// Status Change Handler
 elements.projectList.addEventListener("change", event => {
     const target = event.target;
     if (!target.matches('select[data-action="status"]')) return;
@@ -1103,7 +1245,6 @@ elements.projectList.addEventListener("change", event => {
     if (saved) showToast("Project status updated.");
 });
 
-// Project Delete Confirmation
 $("#cancel-delete").addEventListener("click", () => {
     pendingDeleteId = null;
     elements.deleteDialog.close();
@@ -1124,7 +1265,6 @@ elements.confirmDelete.addEventListener("click", () => {
     if (saved) showToast("Project deleted.");
 });
 
-// T.O.S Delete Confirmation
 $("#cancel-delete-tos").addEventListener("click", () => {
     pendingDeleteTosId = null;
     elements.deleteTosDialog.close();

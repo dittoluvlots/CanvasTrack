@@ -27,6 +27,9 @@
                 <a href="#projects" class="nav-link" data-section="projects">
                     <span class="nav-icon" aria-hidden="true">▤</span> My Projects
                 </a>
+                <a href="#calendar" class="nav-link" data-section="calendar">
+                    <span class="nav-icon" aria-hidden="true">☷</span> Calendar
+                </a>
                 <a href="#tos" class="nav-link" data-section="tos">
                     <span class="nav-icon" aria-hidden="true">☰</span> Intro &amp; T.O.S
                 </a>
@@ -57,10 +60,10 @@
                             <p class="eyebrow">YOUR CREATIVE WORKSPACE</p>
                             <h1>Your creative work, in one place.</h1>
                             <p class="page-description">
-                                Track commissions, monitor progress, and keep deadlines in view.
+                                Track commissions, monitor progress, and keep priorities in view.
                             </p>
                         </div>
-                        <button class="button button-primary" id="open-add-form" type="button" aria-haspopup="dialog">
+                        <button class="button button-primary open-add-form-btn" type="button" aria-haspopup="dialog">
                             <span>＋</span> New project
                         </button>
                     </div>
@@ -118,8 +121,8 @@
                         <section class="panel deadline-panel">
                             <div class="panel-heading">
                                 <div>
-                                    <h2>Upcoming deadlines</h2>
-                                    <p>Keep an eye on what's due next.</p>
+                                    <h2>Priority lane</h2>
+                                    <p>Ordered by priority tier, then earliest deadline.</p>
                                 </div>
                             </div>
                             <div id="upcoming-deadlines" class="deadline-list" aria-live="polite"></div>
@@ -133,8 +136,11 @@
                         <div>
                             <p class="eyebrow">YOUR WORK, ORGANIZED</p>
                             <h1>My projects</h1>
-                            <p class="page-description">Keep each commission's details, status, and deadline easy to find.</p>
+                            <p class="page-description">Keep each commission's details, status, priority, and deadline easy to find.</p>
                         </div>
+                        <button class="button button-primary open-add-form-btn" type="button" aria-haspopup="dialog">
+                            <span>＋</span> New project
+                        </button>
                     </div>
 
                     <section class="panel project-panel">
@@ -177,6 +183,7 @@
 
                             <select id="sort-filter" aria-label="Sort projects">
                                 <option value="newest">Newest first</option>
+                                <option value="priority">Sort by priority</option>
                                 <option value="deadline">Earliest deadline</option>
                                 <option value="price-high">Highest amount</option>
                                 <option value="price-low">Lowest amount</option>
@@ -202,6 +209,41 @@
                         <div id="project-list" class="project-list" aria-live="polite"></div>
                         <p id="results-count" class="results-count" aria-live="polite"></p>
                     </section>
+                </section>
+
+                <!-- CALENDAR SECTION -->
+                <section id="calendar" class="page-section hidden">
+                    <div class="page-heading calendar-page-heading">
+                        <div>
+                            <p class="eyebrow">SCHEDULE &amp; TIMELINE</p>
+                            <h1>Project Calendar</h1>
+                            <p class="page-description">Click any deadline bar to inspect or edit the project.</p>
+                        </div>
+                    </div>
+
+                    <div class="panel calendar-panel">
+                        <div class="cal-nav-bar">
+                            <div class="cal-nav-buttons">
+                                <button class="button button-secondary" id="cal-prev" type="button">‹</button>
+                                <button class="button button-secondary" id="cal-today" type="button">Today</button>
+                                <button class="button button-secondary" id="cal-next" type="button">›</button>
+                            </div>
+                            <h2 id="cal-month-title" class="cal-month-title">November 2026</h2>
+                        </div>
+
+                        <div class="calendar-scroll-wrap">
+                            <div class="calendar-grid">
+                                <div class="cal-header-cell">Sun</div>
+                                <div class="cal-header-cell">Mon</div>
+                                <div class="cal-header-cell">Tue</div>
+                                <div class="cal-header-cell">Wed</div>
+                                <div class="cal-header-cell">Thu</div>
+                                <div class="cal-header-cell">Fri</div>
+                                <div class="cal-header-cell">Sat</div>
+                            </div>
+                            <div id="cal-days-grid" class="cal-days-grid" aria-live="polite"></div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- INTRO & T.O.S SECTION -->
@@ -234,7 +276,7 @@
                 <div>
                     <p class="eyebrow">PROJECT DETAILS</p>
                     <h2 id="dialog-title">Create a project</h2>
-                    <p class="dialog-description">Add the commission details, schedule, and current stage.</p>
+                    <p class="dialog-description">Add the commission details, schedule, priority, and current stage.</p>
                 </div>
                 <button class="close-button" id="close-dialog" type="button"
                     aria-label="Close form">×</button>
@@ -300,16 +342,27 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="project-status">Current status</label>
-                <select id="project-status" name="status">
-                    <option value="Pending">Pending</option>
-                    <option value="Planning">Planning</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="For Review">For Review</option>
-                    <option value="Revision">Revision</option>
-                    <option value="Completed">Completed</option>
-                </select>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="project-status">Current status</label>
+                    <select id="project-status" name="status">
+                        <option value="Pending">Pending</option>
+                        <option value="Planning">Planning</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="For Review">For Review</option>
+                        <option value="Revision">Revision</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="project-priority">Priority level</label>
+                    <select id="project-priority" name="priority">
+                        <option value="low">🟢 Low Priority</option>
+                        <option value="medium">🟠 Medium Priority</option>
+                        <option value="high">🔴 High Priority</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group">
